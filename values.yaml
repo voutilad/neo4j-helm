@@ -6,9 +6,9 @@
 name: "neo4j"
 
 # Specs for the Neo4j docker image
-image: "neo4j"
-imageTag: "4.1.1-enterprise"
-imagePullPolicy: "IfNotPresent"
+image: "neo4j-docker"
+imageTag: "enterprise"
+imagePullPolicy: "Never"
 # imagePullSecret: registry-secret
 acceptLicenseAgreement: "no"
 podDisruptionBudget: {}
@@ -232,7 +232,7 @@ readinessProbe:
   timeoutSeconds: 2
   periodSeconds: 10
   tcpSocket:
-    port: 7687 
+    port: 7687
 
 livenessProbe:
   initialDelaySeconds: 300
