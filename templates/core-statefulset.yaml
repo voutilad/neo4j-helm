@@ -56,37 +56,42 @@ spec:
               name: "{{ .Values.core.configMap }}"
           {{- end }}
         env:
-          {{- if .Values.authEnabled }}
-          - name: NEO4J_SECRETS_PASSWORD
+          - name: HOSTNAME
             valueFrom:
-              secretKeyRef:
-                {{- if .Values.existingPasswordSecret }}
-                name: {{ .Values.existingPasswordSecret }}
-                {{- else }}
-                name: {{ template "neo4j.secrets.fullname" . }}
-                {{- end}}
-                key: neo4j-password
-          {{- end }}      
-        command:
-          - "/bin/bash"
-          - "-c"
-          - |
-            export core_idx=$(hostname | sed 's|.*-||')
-
-            # Processes key configuration elements and exports env vars we need.
-            . /helm-init/init.sh
-
-            {{- if not .Values.core.standalone }}
-            # We advertise the discovery-lb addresses (see discovery-lb.yaml) because
-            # it is for internal cluster comms and is limited to private ports.
-            export DISCOVERY_HOST="discovery-{{ template "neo4j.fullname" . }}-${core_idx}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
-            export NEO4J_causal__clustering_discovery__advertised__address="$DISCOVERY_HOST:5000"
-            export NEO4J_causal__clustering_transaction__advertised__address="$DISCOVERY_HOST:6000"
-            export NEO4J_causal__clustering_raft__advertised__address="$DISCOVERY_HOST:7000"
-            {{- end }}
-
-            echo "Starting Neo4j CORE $core_idx on $HOST"
-            exec /docker-entrypoint.sh "neo4j"
+              fieldRef:
+                fieldPath: metadata.name
+          - name: JVM_INITIAL_HEAP
+            value: 512m
+          - name: JVM_MAXIMUM_HEAP
+            value: 512m
+          - name: NEO4J_dbms_memory_pagecache_size
+            value: 512m
+          - name: NEO4J_dbms_connector_https_enabled
+            value: 'false'
+          - name: NEO4J_dbms_default__advertised__address
+            value: $(HOSTNAME)
+          - name: NEO4J_dbms_connector_bolt_advertised__address
+            value: $(HOSTNAME):7687
+          - name: NEO4J_dbms_connector_http_advertised__address
+            value: $(HOSTNAME):7474
+          - name: NEO4J_dbms_connector_https_advertised__address
+            value: $(HOSTNAME):7473
+          {{- if not .Values.core.standalone }}
+          - name: NEO4J_causal__clustering_discovery__type
+            value: K8S
+          - name: DISCOVERY_HOST
+            value: discovery-$(HOSTNAME).{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}
+          - name: NEO4J_causal__clustering_discovery__advertised__address
+            value: $(DISCOVERY_HOST):5000
+          - name: NEO4J_causal__clustering_transaction__advertised__address
+            value: $(DISCOVERY_HOST):6000
+          - name: NEO4J_causal__clustering_raft__advertised__address
+            value: $(DISCOVERY_HOST):7000
+          - name: NEO4J_causal__clustering_kubernetes_label__selector
+            value: neo4j.com/cluster={{ template "neo4j.fullname" . }},neo4j.com/role=CORE,neo4j.com/coreindex in (0, 1, 2)
+          - name: NEO4J_causal__clustering_kubernetes_service__port__name
+            value: tcp-discovery
+          {{- end }}
         ports:
         - containerPort: 5000
           name: tcp-discovery
@@ -124,7 +129,7 @@ spec:
         - name: creds
           mountPath: /auth
           readOnly: true
-        {{- end }}  
+        {{- end }}
         {{- if .Values.core.additionalVolumeMounts }}
 {{ toYaml .Values.core.additionalVolumeMounts | indent 8}}
         {{- end }}
@@ -147,7 +152,7 @@ spec:
 {{- end }}
       volumes:
         - name: init-script
-          configMap: 
+          configMap:
             name: "{{ .Release.Name }}-init-script"
         {{- if .Values.restoreSecret }}
         - name: creds
