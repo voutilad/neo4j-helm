@@ -50,10 +50,6 @@ clusterDomain: "cluster.local"
 # https://github.com/mneedham/k8s-kubectl this is a general kubectl docker image
 testImage: "gcr.io/neo4j-helm/tester"
 
-# Whether or not to use APOC: https://neo4j.com/labs/apoc/
-# Comment out if you do not want to use it.
-plugins: "[\"apoc\"]"
-
 # The default name of the Neo4j database to use.
 # See https://neo4j.com/docs/operations-manual/current/manage-databases/introduction/#manage-databases-default
 defaultDatabase: "neo4j"
