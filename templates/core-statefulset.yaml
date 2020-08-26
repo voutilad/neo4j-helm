@@ -60,21 +60,23 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: DISCOVERY_HOST
+            value: discovery-$(HOSTNAME).{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}
+          - name: ADVERTISED_HOST
+            value: $(HOSTNAME).{{ template "neo4j.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}
           - name: NEO4J_dbms_connector_https_enabled
             value: 'false'
           - name: NEO4J_dbms_default__advertised__address
-            value: $(HOSTNAME)
+            value: $(ADVERTISED_HOST)
           - name: NEO4J_dbms_connector_bolt_advertised__address
-            value: $(HOSTNAME):7687
+            value: $(ADVERTISED_HOST):7687
           - name: NEO4J_dbms_connector_http_advertised__address
-            value: $(HOSTNAME):7474
+            value: $(ADVERTISED_HOST):7474
           - name: NEO4J_dbms_connector_https_advertised__address
-            value: $(HOSTNAME):7473
+            value: $(ADVERTISED_HOST):7473
           {{- if not .Values.core.standalone }}
           - name: NEO4J_causal__clustering_discovery__type
             value: K8S
-          - name: DISCOVERY_HOST
-            value: discovery-$(HOSTNAME).{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}
           - name: NEO4J_causal__clustering_discovery__advertised__address
             value: $(DISCOVERY_HOST):5000
           - name: NEO4J_causal__clustering_transaction__advertised__address
@@ -130,7 +132,7 @@ spec:
         livenessProbe:
 {{ toYaml .Values.livenessProbe | indent 10 }}
         resources:
-{{ toYaml .Values.resources | indent 10 }}
+{{ toYaml .Values.core.resources | indent 10 }}
 {{- if .Values.core.sidecarContainers }}
 {{ toYaml .Values.core.sidecarContainers | indent 6 }}
 {{- end }}

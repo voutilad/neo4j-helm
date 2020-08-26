@@ -57,34 +57,34 @@ spec:
               name: "{{ .Values.readReplica.configMap }}"
           {{- end }}
         env:
-          {{- if .Values.authEnabled }}
-          - name: NEO4J_SECRETS_PASSWORD
+          - name: HOSTNAME
             valueFrom:
-              secretKeyRef:
-                {{- if .Values.existingPasswordSecret }}
-                name: {{ .Values.existingPasswordSecret }}
-                {{- else }}
-                name: {{ template "neo4j.secrets.fullname" . }}
-                {{- end}}
-                key: neo4j-password
-          {{- end }}
-        command:
-          - "/bin/bash"
-          - "-c"
-          - |
-            export replica_idx=$(hostname | sed 's|.*-||')
-
-            # Processes key configuration elements and exports env vars we need.
-            . /helm-init/init.sh
-
-            # These settings are *not* overrideable, because they must match the addresses the
-            # core members see to avoid akka rejections.
-            export NEO4J_causal__clustering_discovery__advertised__address=$HOST:5000
-            export NEO4J_causal__clustering_transaction__advertised__address=$HOST:6000
-            export NEO4J_causal__clustering_raft__advertised__address=$HOST:7000
-
-            echo "Starting Neo4j READ_REPLICA $replica_idx on $HOST"
-            exec /docker-entrypoint.sh "neo4j"
+              fieldRef:
+                fieldPath: metadata.name
+          - name: ADVERTISED_HOST
+            value: $(HOSTNAME).{{ template "neo4j.fullname" . }}-replica.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}
+          - name: NEO4J_dbms_connector_https_enabled
+            value: 'false'
+          - name: NEO4J_dbms_default__advertised__address
+            value: $(ADVERTISED_HOST)
+          - name: NEO4J_dbms_connector_bolt_advertised__address
+            value: $(ADVERTISED_HOST):7687
+          - name: NEO4J_dbms_connector_http_advertised__address
+            value: $(ADVERTISED_HOST):7474
+          - name: NEO4J_dbms_connector_https_advertised__address
+            value: $(ADVERTISED_HOST):7473
+          - name: NEO4J_causal__clustering_discovery__type
+            value: K8S
+          - name: NEO4J_causal__clustering_discovery__advertised__address
+            value: $(ADVERTISED_HOST):5000
+          - name: NEO4J_causal__clustering_transaction__advertised__address
+            value: $(ADVERTISED_HOST):6000
+          - name: NEO4J_causal__clustering_raft__advertised__address
+            value: $(ADVERTISED_HOST):7000
+          - name: NEO4J_causal__clustering_kubernetes_label__selector
+            value: neo4j.com/cluster={{ template "neo4j.fullname" . }},neo4j.com/role=CORE,neo4j.com/coreindex in (0, 1, 2)
+          - name: NEO4J_causal__clustering_kubernetes_service__port__name
+            value: tcp-discovery
         ports:
         - containerPort: 5000
           name: tcp-discovery
@@ -106,11 +106,9 @@ spec:
         {{- end }}
         {{- if .Values.metrics.jmx.enabled }}
         - containerPort: 3637
-          name: jmx
-        {{- end }}  
+          name: tcp-jmx
+        {{- end }}
         volumeMounts:
-        - name: init-script
-          mountPath: /helm-init
         - name: plugins
           mountPath: /plugins
         - name: datadir
@@ -152,9 +150,6 @@ spec:
 {{ toYaml . | indent 8 }}
 {{- end }}
       volumes:
-        - name: init-script
-          configMap: 
-            name: "{{ .Release.Name }}-init-script"
         {{- if .Values.restoreSecret }}
         - name: creds
           secret:
