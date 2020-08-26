@@ -60,12 +60,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
-          - name: JVM_INITIAL_HEAP
-            value: 512m
-          - name: JVM_MAXIMUM_HEAP
-            value: 512m
-          - name: NEO4J_dbms_memory_pagecache_size
-            value: 512m
           - name: NEO4J_dbms_connector_https_enabled
             value: 'false'
           - name: NEO4J_dbms_default__advertised__address
@@ -116,8 +110,6 @@ spec:
           name: tcp-jmx
         {{- end }}
         volumeMounts:
-        - name: init-script
-          mountPath: /helm-init
         - name: datadir
           mountPath: "{{ .Values.core.persistentVolume.mountPath }}"
           {{- if .Values.core.persistentVolume.subPath }}
@@ -151,9 +143,6 @@ spec:
 {{ toYaml .Values.core.initContainers | indent 6 }}
 {{- end }}
       volumes:
-        - name: init-script
-          configMap:
-            name: "{{ .Release.Name }}-init-script"
         {{- if .Values.restoreSecret }}
         - name: creds
           secret:
